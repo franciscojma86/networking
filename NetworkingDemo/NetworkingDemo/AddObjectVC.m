@@ -14,6 +14,9 @@
 
 @property (nonatomic,strong) UITextField *nameTextField;
 
+//Reference to the object creation task, so we can cancel it if needed
+@property (nonatomic,strong) NSURLSessionDataTask *saveTask;
+
 @end
 
 @implementation AddObjectVC
@@ -28,6 +31,7 @@
     self.navigationItem.rightBarButtonItem = saveButton;
     //Create the textview
     [self.view setBackgroundColor:[UIColor whiteColor]];
+    self.navigationController.navigationBar.translucent = NO;
     self.nameTextField = [[UITextField alloc] init];
     [self.nameTextField setTranslatesAutoresizingMaskIntoConstraints:NO];
     
@@ -36,14 +40,19 @@
     self.nameTextField.textAlignment = NSTextAlignmentCenter;
     
     [self.view addSubview:self.nameTextField];
-    
-    [self.view alignSubView:self.nameTextField centers:ConstraintCentersY
-                      apply:YES];
     [self.view alignSubview:self.nameTextField
                      offset:40.0
                  multiplier:1.0
-                      edges:ConstraintEdgesLeft | ConstraintEdgesRight
+                      edges:ConstraintEdgesLeft | ConstraintEdgesRight | ConstraintEdgesTop
                       apply:YES];
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
+    if ([self isMovingFromParentViewController]) {
+        //cancel operation if "back" is pressed
+        if (self.saveTask) [self.saveTask cancel];
+    }
 }
 
 
@@ -55,7 +64,10 @@
     self.navigationItem.rightBarButtonItem = loading;
 
     NSDictionary *params = @{@"name":self.nameTextField.text};
-    [[NetworkingClient sharedClient] dataTaskWithMethod:POST
+    
+    //if there is a running task, cancel it first
+    if (self.saveTask) [self.saveTask cancel];
+    self.saveTask = [[NetworkingClient sharedClient] dataTaskWithMethod:POST
                                                    path:@"classes/TestObject"
                                                    body:params
                                        successDataBlock:nil
@@ -65,7 +77,18 @@
                                            [self.delegate addObjectVCDidAddEntry:self];
                                        } failure:^(NSString *errorMessage, BOOL cancelled) {
                                            self.navigationItem.rightBarButtonItem = saveButton;
-                                           NSLog(@"ERROR %@ CANCELLED %d", errorMessage,cancelled);
+                                           if (!cancelled) {
+                                               UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Error"
+                                                                                                              message:errorMessage
+                                                                                                       preferredStyle:UIAlertControllerStyleAlert];
+                                               UIAlertAction *cancelButton = [UIAlertAction actionWithTitle:@"OK"
+                                                                                                      style:UIAlertActionStyleCancel
+                                                                                                    handler:nil];
+                                               [alert addAction:cancelButton];
+                                               [self presentViewController:alert animated:YES completion:nil];
+
+                                           }
+
                                        }];
 
 }
