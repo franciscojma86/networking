@@ -23,7 +23,7 @@
 
 static  NSString *const cellIdentifier = @"objectCell";
 
-//TODO: Add object deletion feature
+//TODO: Add object deletion feature 
 
 - (void)viewDidLoad {
     [super viewDidLoad];
